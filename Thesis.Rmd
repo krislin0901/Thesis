@@ -1,0 +1,664 @@
+---
+title: "Thesis"
+author: "Lin Yu Chen"
+date: "06/01/2021"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r 01, message=FALSE}
+# Cleaning up all variables
+rm(list=ls())
+# Clearing Console
+cat("\014")
+# Closing all plots
+graphics.off()
+
+# Loading libraries
+library(ggplot2)
+library(vars)
+library(tidyverse)
+library(gridExtra)
+library(forecast)
+library(fredr)
+library(tseries)
+library(knitr)
+library(DescTools)
+library(psych)
+library(tsDyn)
+```
+
+```{r 02}
+
+fredr_set_key("f8ead5792263b73c41a7f8789e672d59")
+
+btc <- fredr_series_observations(
+  series_id = "CBBTCUSD",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "lin"
+)
+
+btc2 <- fredr_series_observations(
+  series_id = "CBBTCUSD",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "pch"
+)
+
+cpi<- fredr_series_observations(
+  series_id = "CPIAUCSL",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "pc1"
+)
+usd <- fredr_series_observations(
+  series_id = "DTWEXBGS",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "lin"
+)
+
+usd2 <- fredr_series_observations(
+  series_id = "DTWEXBGS",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "pch"
+)
+
+ffr <- fredr_series_observations(
+  series_id = "DFF",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "lin"
+)
+csi <- fredr_series_observations(
+  series_id = "UMCSENT",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "lin"
+)
+djia <- fredr_series_observations(
+  series_id = "DJIA",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "lin"
+)
+
+djia2 <- fredr_series_observations(
+  series_id = "DJIA",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "pch"
+)
+uer <- fredr_series_observations(
+  series_id = "UNRATE",
+  observation_start = as.Date("2015-02-01"),
+  observation_end = as.Date("2021-11-01"),
+  frequency = "m",
+  units = "lin"
+)
+
+gld <- read.csv("GOLDPMGBD228NLBM.csv")
+gld$series_id <- "GOLDPMGBD228NLBM"
+names(gld)[names(gld) == "DATE"] <- "date"
+names(gld)[names(gld) == "GOLDPMGBD228NLBM"] <- "value"
+gld$date <- as.Date(gld$date)
+
+gld2 <- read.csv("GOLDPMGBD228NLBM2.csv")
+gld2$series_id <- "GOLDPMGBD228NLBM_PCH"
+names(gld2)[names(gld2) == "DATE"] <- "date"
+names(gld2)[names(gld2) == "GOLDPMGBD228NLBM_PCH"] <- "value"
+gld2$date <- as.Date(gld2$date)
+```
+
+
+```{r 03}
+btc.ts<- ts(btc$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+btc3.ts<- ts(btc2$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+gld.ts<- ts(gld$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+gld3.ts<- ts(gld2$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+cpi.ts<- ts(cpi$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+usd.ts<- ts(usd$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+usd3.ts<- ts(usd2$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+uer.ts<- ts(uer$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+ffr.ts<- ts(ffr$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+csi.ts<- ts(csi$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+djia.ts<- ts(djia$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+djia3.ts<- ts(djia2$value, start = c(2015,2), end = c(2021,11), frequency = 12)
+
+df.long <- rbind(btc, gld, cpi, usd, uer, ffr, csi, djia)
+# wide form
+dataset <- spread(df.long, series_id, value)
+
+library(tidyverse)
+names(dataset)[names(dataset) == "CBBTCUSD"] <- "Bitcoin"
+names(dataset)[names(dataset) == "CPIAUCSL"] <- "Inflation Rate"
+names(dataset)[names(dataset) == "DTWEXBGS"] <- "US Dollar Index"
+names(dataset)[names(dataset) == "UNRATE"] <- "Unemployment Rate"
+names(dataset)[names(dataset) == "DFF"] <- "Fed Funds Rate"
+names(dataset)[names(dataset) == "UMCSENT"] <- "Consumer Sentiment Index"
+names(dataset)[names(dataset) == "DJIA"] <- "Dow Jones Industrial Average"
+names(dataset)[names(dataset) == "GOLDPMGBD228NLBM"] <- "Gold"
+dataset<- dataset %>% 
+  relocate(Gold, .after = Bitcoin)
+write.csv(dataset, "dataset.csv")
+```
+
+```{r 04}
+dataset <- dataset[,-1]
+desstats <- describe(dataset)
+desstats <- select(desstats, -vars, -n, -range, -trimmed, -mad, -se)
+#choosing the columns that I need for the descriptive statisitics
+
+options(scipen=100)
+list <- list(btc.ts, gld.ts, cpi.ts, usd.ts, uer.ts, ffr.ts, csi.ts, djia.ts)
+nortest <- 0
+nortest <- data.frame(nortest)
+for (i in 1:8) {
+  nortest[i,1] <- jarque.bera.test(list[[i]])$statistic
+  nortest[i,2] <- jarque.bera.test(list[[i]])$p.value
+}
+rownames(nortest)[1:8] <- c("Bitcoin","Gold", "Inflation Rate", "Fed Funds Rate", "Dow Jones Industrial Average", "US Dollar Index", "Consumer Sentiment Index", "Unemployment Rate")
+colnames(nortest)[1:2] <- c("Jarque-Bera", "P-Value")
+#obtaining the normality results from each time series
+
+desstats<- desstats %>% 
+  relocate(min, .after = max) %>%
+  relocate(sd, .after = min)
+desstats <- t(cbind(desstats, nortest))
+desstats <- data.frame(desstats)
+rownames(desstats)[1:7] <- c("Mean", "Median", "Maximum", "Minimum", "Std. Dev.", "Skewness", "Kurtosis")
+colnames(desstats)[1:8] <- c("Bitcoin","Gold", "Inflation Rate", "Fed Funds Rate", "Dow Jones Industrial Average", "US Dollar Index", "Consumer Sentiment Index", "Unemployment Rate")
+desstats <- round(desstats, digits = 6)
+dstable <- desstats
+colnames(dstable)[1:8] <- c("Bitcoin", "Gold", "Inflation", "Fed Rate", "Dow Jones", "USD", "Sentiment", "Unemployment")
+#combining the original descriptive stats with Normality Test result
+
+```
+
+```{r 10, dpi = 600, fig.height = 5, fig.width = 7.5}
+btccpi <- as.data.frame(cbind(btc3.ts, cpi.ts))
+btcusd <- as.data.frame(cbind(btc3.ts, usd3.ts))
+btcuer <- as.data.frame(cbind(btc3.ts, uer.ts))
+btcffr <- as.data.frame(cbind(btc3.ts, ffr.ts))
+btccsi <- as.data.frame(cbind(btc3.ts, csi.ts))
+btcdjia <- as.data.frame(cbind(btc3.ts, djia3.ts))
+
+g1 <- ggplot(btccpi, aes(x=btccpi$cpi.ts, y=btccpi$btc3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("Consumer Price Index") + ylab("Bitcoin")
+g2 <- ggplot(btcusd, aes(x=btcusd$usd3.ts, y=btcusd$btc3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("US Dollar Exchange Index") + ylab("Bitcoin")
+g3 <- ggplot(btcuer, aes(x=btcuer$uer.ts, y=btcuer$btc3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("Unemployment Rate") + ylab("Bitcoin")
+g4 <- ggplot(btcffr, aes(x=btcffr$ffr.ts, y=btcffr$btc3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("Fed Funds Rate") + ylab("Bitcoin")
+g5 <- ggplot(btccsi, aes(x=btccsi$csi.ts, y=btccsi$btc3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("Consumer Sentiment Index") + ylab("Bitcoin")
+g6 <- ggplot(btcdjia, aes(x=btcdjia$djia3.ts, y=btcdjia$btc3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("DJIA Index") + ylab("Bitcoin")
+grid.arrange(g1, g2, g3, g4, g5, g6,  ncol=3)
+```
+
+
+```{r 11, dpi = 600, fig.height = 5, fig.width = 7.5}
+gldcpi <- as.data.frame(cbind(gld3.ts, cpi.ts))
+gldusd <- as.data.frame(cbind(gld3.ts, usd3.ts))
+glduer <- as.data.frame(cbind(gld3.ts, uer.ts))
+gldffr <- as.data.frame(cbind(gld3.ts, ffr.ts))
+gldcsi <- as.data.frame(cbind(gld3.ts, csi.ts))
+glddjia <- as.data.frame(cbind(gld3.ts, djia3.ts))
+
+k1 <- ggplot(gldcpi, aes(x=gldcpi$cpi.ts, y=gldcpi$gld3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("Consumer Price Index") + ylab("Gold")
+k2 <- ggplot(gldusd, aes(x=gldusd$usd3.ts, y=gldusd$gld3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("US Dollar Exchange Index") + ylab("Gold")
+k3 <- ggplot(glduer, aes(x=glduer$uer.ts, y=glduer$gld3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("Unemployment Rate") + ylab("Gold")
+k4 <- ggplot(gldffr, aes(x=gldffr$ffr.ts, y=gldffr$gld3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("Fed Funds Rate") + ylab("Gold")
+k5 <- ggplot(gldcsi, aes(x=gldcsi$csi.ts, y=gldcsi$gld3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("Consumer Sentiment Index") + ylab("Gold")
+k6 <- ggplot(glddjia, aes(x=glddjia$djia3.ts, y=glddjia$gld3.ts)) + 
+  geom_point(shape=20, color="royalblue1") + xlab("DJIA Index") + ylab("Gold")
+grid.arrange(k1, k2, k3, k4, k5, k6,  ncol=3)
+```
+
+```{r 05}
+desstats
+write_csv(desstats, "desstats.csv")
+```
+
+```{r 06}
+btc.ts <- log(btc.ts)
+gld.ts <- log(gld.ts)
+djia.ts <- log(djia.ts)
+usd.ts <- log(usd.ts)
+csi.ts <-log(csi.ts)
+```
+
+```{r 07, fig.height = 12, fig.width = 6, dpi = 600}
+p1 <- autoplot(btc.ts) + geom_line(col = 'royalblue3') + ggtitle("Bitcoin Price") + ylab("") + theme_minimal()
+p2 <- autoplot(cpi.ts) + geom_line(col = 'royalblue3') + ggtitle("Consumer Price Index") + ylab("") + theme_minimal()
+p3 <- autoplot(usd.ts) + geom_line(col = 'royalblue3') + ggtitle("USD Index") + ylab("") + theme_minimal()
+p4 <- autoplot(uer.ts) + geom_line(col = 'royalblue3') + ggtitle("Unemployment Rate") + ylab("") + theme_minimal()
+p5 <- autoplot(ffr.ts) + geom_line(col = 'royalblue3') + ggtitle("Fed Funds Rate") + ylab("") + theme_minimal()
+p6 <- autoplot(csi.ts) + geom_line(col = 'royalblue3') + ggtitle("Consumer Sentiment Index") + ylab("") + theme_minimal()
+p7 <- autoplot(djia.ts) + geom_line(col = 'royalblue3') + ggtitle("DJIA Index") + ylab("") + xlab("") + theme_minimal() 
+p8 <- autoplot(gld.ts) + geom_line(col = 'royalblue3') + ggtitle("Gold Price") + ylab("") + xlab("") + theme_minimal() 
+
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8,  ncol=1)
+```
+
+```{r 08}
+ndiffs(na.remove(btc.ts), alpha = 0.05, test=c("adf"))
+ndiffs(na.remove(btc.ts), alpha = 0.05, test=c("pp"))
+ndiffs(na.remove(btc.ts), alpha = 0.05, test=c("kpss"))
+#The results are all 1.
+btc2.ts <- na.remove(diff(btc.ts, differences= 1))
+
+
+ndiffs(na.remove(cpi.ts), alpha = 0.05, test=c("adf"))
+ndiffs(na.remove(cpi.ts), alpha = 0.05, test=c("pp"))
+ndiffs(na.remove(cpi.ts), alpha = 0.05, test=c("kpss"))
+#The results are all 1.
+cpi2.ts <- na.remove(diff(cpi.ts, differences= 1))
+
+
+ndiffs(na.remove(usd.ts), alpha = 0.05, test=c("adf"))
+ndiffs(na.remove(usd.ts), alpha = 0.05, test=c("pp"))
+ndiffs(na.remove(usd.ts), alpha = 0.05, test=c("kpss"))
+#The results are all 1.
+usd2.ts <- na.remove(diff(usd.ts, differences= 1))
+
+
+ndiffs(na.remove(uer.ts), alpha = 0.05, test=c("adf"))
+ndiffs(na.remove(uer.ts), alpha = 0.05, test=c("pp"))
+ndiffs(na.remove(uer.ts), alpha = 0.05, test=c("kpss"))
+#The results are all 0 except of KPSS test. We choose not difference.
+
+
+
+ndiffs(na.remove(ffr.ts), alpha = 0.05, test=c("adf"))
+ndiffs(na.remove(ffr.ts), alpha = 0.05, test=c("pp"))
+ndiffs(na.remove(ffr.ts), alpha = 0.05, test=c("kpss"))
+#The result for the ADF,PP test is 1 and KPSS test is 2. We choose to difference once.
+ffr2.ts <- na.remove(diff(ffr.ts, differences= 1))
+
+ndiffs(na.remove(csi.ts), alpha = 0.05, test=c("adf"))
+ndiffs(na.remove(csi.ts), alpha = 0.05, test=c("pp"))
+ndiffs(na.remove(csi.ts), alpha = 0.05, test=c("kpss"))
+#The results are all 1.
+csi2.ts <- na.remove(diff(csi.ts, differences= 1))
+
+ndiffs(na.remove(djia.ts), alpha = 0.05, test=c("adf"))
+ndiffs(na.remove(djia.ts), alpha = 0.05, test=c("pp"))
+ndiffs(na.remove(djia.ts), alpha = 0.05, test=c("kpss"))
+#The results are all 1.
+djia2.ts <- na.remove(diff(djia.ts, differences= 1))
+
+ndiffs(na.remove(gld.ts), alpha = 0.05, test=c("adf"))
+ndiffs(na.remove(gld.ts), alpha = 0.05, test=c("pp"))
+ndiffs(na.remove(gld.ts), alpha = 0.05, test=c("kpss"))
+#The results are all 1.
+gld2.ts <- na.remove(diff(gld.ts, differences= 1))
+```
+
+
+
+```{r 09, fig.height = 12, fig.width = 6, dpi = 600}
+f1 <- autoplot(btc2.ts) + geom_line(col = 'royalblue3') + ggtitle("Bitcoin Price Change Rate") + ylab("") + theme_minimal()
+f2 <- autoplot(cpi2.ts) + geom_line(col = 'royalblue3') + ggtitle("Consumer Price Index") + ylab("") + theme_minimal()
+f3 <- autoplot(usd2.ts) + geom_line(col = 'royalblue3') + ggtitle("US Dollar Exchange Rate Index") + ylab("") + theme_minimal()
+f4 <- autoplot(uer.ts) + geom_line(col = 'royalblue3') + ggtitle("Unemployment Rate") + ylab("") + theme_minimal()
+f5 <- autoplot(ffr2.ts) + geom_line(col = 'royalblue3') + ggtitle("Fed Funds Rate") + ylab("") + theme_minimal()
+f6 <- autoplot(csi2.ts) + geom_line(col = 'royalblue3') + ggtitle("Consumer Sentiment Index") + ylab("") + theme_minimal()
+f7 <- autoplot(djia2.ts) + geom_line(col = 'royalblue3') + ggtitle("DJIA Index Change Rate") + ylab("") + theme_minimal()
+f8 <- autoplot(gld2.ts) + geom_line(col = 'royalblue3') + ggtitle("Gold Price Change Rate") + ylab("") + theme_minimal()
+grid.arrange(f1, f2, f3, f4, f5, f6, f7, f8, ncol=1)
+```
+
+
+
+
+
+
+```{r 12}
+# long form
+df.long <- rbind(btc, cpi, usd, uer, ffr, csi, djia)
+# wide form
+df.wide <- spread(df.long, series_id, value)
+```
+
+```{r 13}
+# long form
+df2.long <- rbind(gld, cpi, usd, uer, ffr, csi, djia)
+# wide form
+df2.wide <- spread(df2.long, series_id, value)
+```
+
+```{r 14}
+# Omit na
+df.wide$btc <- c(NA, diff(log(df.wide$CBBTCUSD)))
+df.wide$cpi <- c(NA, diff(df.wide$CPIAUCSL))
+df.wide$usd <- c(NA, diff(log(df.wide$DTWEXBGS)))
+df.wide$uer <- c(NA, diff(df.wide$UNRATE))
+df.wide$ffr <- c(NA, diff(df.wide$DFF))
+df.wide$csi <- c(NA, diff(log(df.wide$UMCSENT)))
+df.wide$djia <- c(NA, diff(log(df.wide$DJIA)))
+is.na(df.wide) <- sapply(df.wide, is.infinite)
+df.wide <- na.omit(df.wide)
+
+
+#create time series
+TS <- na.remove(cbind(df.wide$btc, df.wide$cpi, df.wide$usd, df.wide$uer, df.wide$ffr, df.wide$csi, df.wide$djia))
+TS2 <- ts(TS, frequency = 12, start = c(2015,2), end = c(2021,11), names = c("btc", "cpi", "usd", "uer", "ffr", "csi", "djia"))
+
+```
+
+
+```{r 15}
+# Omit na
+df2.wide$gld <- c(NA, diff(log(dataset$Gold)))
+df2.wide$cpi <- c(NA, diff(df2.wide$CPIAUCSL))
+df2.wide$usd <- c(NA, diff(log(df2.wide$DTWEXBGS)))
+df2.wide$uer <- c(NA, diff(df2.wide$UNRATE))
+df2.wide$ffr <- c(NA, diff(df2.wide$DFF))
+df2.wide$csi <- c(NA, diff(log(df2.wide$UMCSENT)))
+df2.wide$djia <- c(NA, diff(log(df2.wide$DJIA)))
+is.na(df2.wide) <- sapply(df2.wide, is.infinite)
+df2.wide <- na.omit(df2.wide)
+
+
+#create time series
+TSGLD <- na.remove(cbind(df2.wide$gld, df2.wide$cpi, df2.wide$usd, df2.wide$uer, df2.wide$ffr, df2.wide$csi, df2.wide$djia))
+TSGLD2 <- ts(TSGLD, frequency = 12, start = c(2015,2), end = c(2021,11), names = c("gld", "cpi", "usd", "uer", "ffr", "csi", "djia"))
+```
+
+```{r 16}
+lagselect <- VARselect(TS2, lag.max = 6, type = "const")
+lagselect$selection
+```
+
+```{r 17}
+lagselect <- VARselect(TSGLD2, lag.max = 6)
+lagselect$selection
+```
+
+```{r 18}
+cotesttrace <- ca.jo(TS2, type= "trace", ecdet ="const", K = 6)
+summary(cotesttrace)
+BTCModel <- VECM(TS2, 6, r = 2, estim = "ML")
+summary(BTCModel)
+```
+
+```{r 19}
+cotestgldtrace <- ca.jo(TSGLD2, type= "trace", ecdet ="const", K = 6)
+summary(cotestgldtrace)
+GLDModel <- VECM(TSGLD2, 6, r = 2, estim = "ML")
+summary(GLDModel)
+```
+
+```{r 20}
+Est <- vec2var(cotesttrace, r=2)
+EstIRF <- irf(Est, impulse=c("btc", "cpi", "usd", "uer", "ffr", "csi", "djia"), response = "btc", n.ahead = 12, ortho = TRUE, boot = TRUE, runs = 1000, ci = 0.95)
+```
+
+```{r 21}
+EstGLD <- vec2var(cotestgldtrace, r=2)
+EstGLDIRF <- irf(EstGLD, impulse=c("gld", "cpi", "usd", "uer", "ffr", "csi", "djia"), response = "gld", n.ahead = 12, ortho = TRUE, boot = TRUE, runs = 1000, ci = 0.95)
+```
+
+```{r 22}
+btcvararef <- arch.test(Est, lags.multi = 1, multivariate.only = TRUE)
+gldvararef <- arch.test(EstGLD, lags.multi = 1, multivariate.only = TRUE)
+btcvararef 
+gldvararef
+```
+
+
+```{r 23, dpi = 600}
+#Create IRF plots
+horizon <- c(0:12)
+irfList <- list()
+IRF <- data.frame(EstIRF$irf$btc, EstIRF$Lower$btc, EstIRF$Upper$btc, horizon)
+colnames(IRF) <- c("IRF", "L", "U", "time")
+irfList[[1]] <- ggplot(data = IRF, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Bitcoin") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+g1 <- do.call(arrangeGrob, irfList)
+
+irfList <- list()
+IRF <- data.frame(EstIRF$irf$cpi, EstIRF$Lower$cpi, EstIRF$Upper$cpi, horizon)
+colnames(IRF) <- c("IRF", "L", "U", "time")
+irfList[[1]] <- ggplot(data = IRF, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Inflation Rate") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+g2 <- do.call(arrangeGrob, irfList)
+
+irfList <- list()
+IRF <- data.frame(EstIRF$irf$usd, EstIRF$Lower$usd, EstIRF$Upper$usd, horizon)
+colnames(IRF) <- c("IRF", "L", "U", "time")
+irfList[[1]] <- ggplot(data = IRF, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from US Dollar Exchange Index") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+g3 <- do.call(arrangeGrob, irfList)
+
+irfList <- list()
+IRF <- data.frame(EstIRF$irf$uer, EstIRF$Lower$uer, EstIRF$Upper$uer, horizon)
+colnames(IRF) <- c("IRF", "L", "U", "time")
+irfList[[1]] <- ggplot(data = IRF, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Unemployment Rate") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+g4 <- do.call(arrangeGrob, irfList)
+
+irfList <- list()
+IRF <- data.frame(EstIRF$irf$ffr, EstIRF$Lower$ffr, EstIRF$Upper$ffr, horizon, y = -0.25:0.25)
+colnames(IRF) <- c("IRF", "L", "U", "time")
+irfList[[1]] <- ggplot(data = IRF, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Fed Funds Rate") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+
+g5 <- do.call(arrangeGrob, irfList)
+
+irfList <- list()
+IRF <- data.frame(EstIRF$irf$csi, EstIRF$Lower$csi, EstIRF$Upper$csi, horizon, y = -0.25:0.25)
+colnames(IRF) <- c("IRF", "L", "U", "time")
+irfList[[1]] <- ggplot(data = IRF, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Consumer Sentiment Index") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+    
+g6 <- do.call(arrangeGrob, irfList)
+
+irfList <- list()
+IRF <- data.frame(EstIRF$irf$djia, EstIRF$Lower$djia, EstIRF$Upper$djia, horizon, y = -0.25:0.25)
+colnames(IRF) <- c("IRF", "L", "U", "time")
+irfList[[1]] <- ggplot(data = IRF, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from DJIA") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+    
+g7 <- do.call(arrangeGrob, irfList)
+
+grid.arrange(g1,g2,g3,g4,g5,g6,g7, nrow = 4)
+```
+
+```{r 24, dpi = 600}
+#Create IRF plots
+horizon <- c(0:12)
+irfgldList <- list()
+IRFGLD <- data.frame(EstGLDIRF$irf$gld, EstGLDIRF$Lower$gld, EstGLDIRF$Upper$gld, horizon)
+colnames(IRFGLD) <- c("IRF", "L", "U", "time")
+irfgldList[[1]] <- ggplot(data = IRFGLD, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Gold") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+j1 <- do.call(arrangeGrob, irfgldList)
+
+irfgldList <- list()
+IRFGLD <- data.frame(EstGLDIRF$irf$cpi, EstGLDIRF$Lower$cpi, EstGLDIRF$Upper$cpi, horizon)
+colnames(IRFGLD) <- c("IRF", "L", "U", "time")
+irfgldList[[1]] <- ggplot(data = IRFGLD, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Inflation Rate") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+j2 <- do.call(arrangeGrob, irfgldList)
+
+irfgldList <- list()
+IRFGLD <- data.frame(EstGLDIRF$irf$usd, EstGLDIRF$Lower$usd, EstGLDIRF$Upper$usd, horizon)
+colnames(IRFGLD) <- c("IRF", "L", "U", "time")
+irfgldList[[1]] <- ggplot(data = IRFGLD, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from US Dollar Exchange Index") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+j3 <- do.call(arrangeGrob, irfgldList)
+
+irfgldList <- list()
+IRFGLD <- data.frame(EstGLDIRF$irf$uer, EstGLDIRF$Lower$uer, EstGLDIRF$Upper$uer, horizon)
+colnames(IRFGLD) <- c("IRF", "L", "U", "time")
+irfgldList[[1]] <- ggplot(data = IRFGLD, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Unemployment Rate") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+j4 <- do.call(arrangeGrob, irfgldList)
+
+irfgldList <- list()
+IRFGLD <- data.frame(EstGLDIRF$irf$ffr, EstGLDIRF$Lower$ffr, EstGLDIRF$Upper$ffr, horizon, y = -0.25:0.25)
+colnames(IRFGLD) <- c("IRF", "L", "U", "time")
+irfgldList[[1]] <- ggplot(data = IRFGLD, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Fed Funds Rate") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+j5 <- do.call(arrangeGrob, irfgldList)
+
+irfgldList <- list()
+IRFGLD <- data.frame(EstGLDIRF$irf$csi, EstGLDIRF$Lower$csi, EstGLDIRF$Upper$csi, horizon, y = -0.25:0.25)
+colnames(IRFGLD) <- c("IRF", "L", "U", "time")
+irfgldList[[1]] <- ggplot(data = IRFGLD, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from Consumer Sentiment Index") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+    
+j6 <- do.call(arrangeGrob, irfgldList)
+
+irfgldList <- list()
+IRFGLD <- data.frame(EstGLDIRF$irf$djia, EstGLDIRF$Lower$djia, EstGLDIRF$Upper$djia, horizon, y = -0.25:0.25)
+colnames(IRFGLD) <- c("IRF", "L", "U", "time")
+irfgldList[[1]] <- ggplot(data = IRFGLD, aes(time, IRF))+ geom_line(aes(y = U), colour = 'gray80') + geom_line(aes(y = L), colour = 'gray80') + geom_ribbon(aes(x=time, ymax=U, ymin=L), fill="gray80") + xlab("Quarters") + ylab("") + ggtitle("Impulse from DJIA") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 7), axis.title = element_text(size=7)) + scale_x_continuous(breaks = seq(0, 12, by = 2)) + geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") + geom_line(colour = 'royalblue3', size = 1)
+    
+j7 <- do.call(arrangeGrob, irfgldList)
+
+grid.arrange(j1,j2,j3,j4,j5,j6,j7, nrow = 4)
+```
+
+```{r 25, dpi = 600, fig.height = 4, fig.width = 10}
+#Variance Decomposition
+library(vars)
+
+fevdest <- fevd(Est, n.ahead = 12)
+plot(fevdest, names = btc)
+```
+```{r 26, dpi = 600, fig.height = 4, fig.width = 10}
+#Variance Decomposition
+library(vars)
+
+fevdgldest <- fevd(EstGLD, n.ahead = 12)
+plot(fevdgldest, names = gld)
+```
+
+```{r 27, dpi = 600, fig.height = 10, fig.width = 10}
+#Variance Decomposition
+library(vars)
+
+layout(matrix(1:8, ncol = 1))
+library("RColorBrewer")
+plot.varfevd  <-function (x, plot.type = c("multiple", "single"), names = NULL,
+    main = NULL, col = NULL, ylim = NULL, ylab = NULL, xlab = NULL,
+    legend = NULL, names.arg = NULL, nc, mar = par("mar"), oma = par("oma"),
+    addbars = 1, ...)
+{
+    K <- length(x)
+    ynames <- names(x)
+    plot.type <- match.arg(plot.type)
+    if (is.null(names)) {
+        names <- ynames
+    }
+    else {
+        names <- as.character(names)
+        if (!(all(names %in% ynames))) {
+            warning("\nInvalid variable name(s) supplied, using first variable.\n")
+            names <- ynames[1]
+        }
+    }
+    nv <- length(names)
+#    op <- par(no.readonly = TRUE)
+    ifelse(is.null(main), main <- paste("FEVD for", names), main <- rep(main,
+        nv)[1:nv])
+    ifelse(is.null(col), col <- gray.colors(K), col <- rep(col,
+        K)[1:K])
+    ifelse(is.null(ylab), ylab <- rep("Percentage", nv), ylab <- rep(ylab,
+        nv)[1:nv])
+    ifelse(is.null(xlab), xlab <- rep("Horizon", nv), xlab <- rep(xlab,
+        nv)[1:nv])
+    ifelse(is.null(ylim), ylim <- c(0, 1), ylim <- ylim)
+    ifelse(is.null(legend), legend <- ynames, legend <- legend)
+    if (is.null(names.arg))
+        names.arg <- c(paste(1:nrow(x[[1]])), rep(NA, addbars))
+    plotfevd <- function(x, main, col, ylab, xlab, names.arg,
+        ylim, ...) {
+        addbars <- as.integer(addbars)
+        if (addbars > 0) {
+            hmat <- matrix(0, nrow = K, ncol = addbars)
+            xvalue <- cbind(t(x), hmat)
+            barplot(xvalue, main = main, col = col, ylab = ylab,
+                xlab = xlab, names.arg = names.arg, ylim = ylim,
+                legend.text = legend, cex.axis=1.5, cex.names=1.5, width=0.25,
+                cex.main = 2.25, cex.lab = 1.5, ...)
+            abline(h = 0)
+        }
+        else {
+            xvalue <- t(x)
+            barplot(xvalue, main = main, col = col, ylab = ylab,
+                xlab = xlab, names.arg = names.arg, ylim = ylim,
+                cex.axis=1.5, cex.names=1.5, width=0.25, 
+                cex.main = 2.25, cex.lab = 1.5, ...)
+            abline(h = 0)
+        }
+    }
+    if (plot.type == "single") {
+#        par(mar = mar, oma = oma)
+#        if (nv > 1)
+#            par(ask = TRUE)
+        for (i in 1:nv) {
+            plotfevd(x = x[[names[i]]], main = main[i], col = col,
+                ylab = ylab[i], xlab = xlab[i], names.arg = names.arg,
+                ylim = ylim, ...)
+        }
+    }
+    else if (plot.type == "multiple") {
+        if (missing(nc)) {
+            nc <- ifelse(nv > 4, 2, 1)
+        }
+        nr <- ceiling(nv/nc)
+        par(mfcol = c(nr, nc), mar = mar, oma = oma)
+        for (i in 1:nv) {
+            plotfevd(x = x[[names[i]]], main = main[i], col = col,
+                ylab = ylab[i], xlab = xlab[i], names.arg = names.arg,
+                ylim = ylim, ...)
+        }
+    }
+#    on.exit(par(op))
+}
+
+plot.varfevd(fevd(Est, n.ahead = 12), plot.type = "multiple", col = brewer.pal(n = 8, name = "RdBu"))
+plot.varfevd(fevd(EstGLD, n.ahead = 12), plot.type = "multiple", col = brewer.pal(n = 8, name = "RdBu"))
+```
+
+
+```{r 28,fig.height = 2, fig.width = 6, dpi = 600}
+p1 <- autoplot(btc3.ts) + geom_line(col = 'royalblue3') + ggtitle("Bitcoin Price Percent Change") + ylab("") + theme_minimal()
+p1
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
